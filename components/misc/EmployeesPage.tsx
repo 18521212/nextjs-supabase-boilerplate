@@ -17,6 +17,14 @@ interface EmployeesPageProps {
   user: User;
 }
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
 export default function EmployeesPage({ user }: EmployeesPageProps) {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +33,11 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
   const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
   const { currentTenant } = useTenant();
+
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [departments, setDepartments] = useState<string[]>([]);
+
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   
   useEffect(() => {
     if (currentTenant) {
@@ -40,6 +53,7 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
       if (employees) {
         setEmployees(employees);
         setTotalItems(count || 0);
+        setDepartments(Array.from(new Set(employees.flatMap(emp => emp.departments?.map((d: any) => d.department.name)))));
       }
     } catch (error) {
       console.error('Error loading employees:', error);
@@ -79,6 +93,27 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
+  const handleDepartmentChange = (value: string) => {
+    setSelectedDepartment(value);
+    // Note: You might want to add department filtering logic here
+  };
+
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
+    setCurrentPage(1);
+  };
+
+  const filteredEmployees = employees.filter(employee => 
+    (selectedDepartment === "all" || 
+      employee.departments?.some(
+        (d: any) => d.department.name === selectedDepartment
+      )
+    ) &&
+    (selectedStatus === "all" || 
+      (selectedStatus === "active" ? employee.is_active : !employee.is_active)
+    )
+  );
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -90,6 +125,33 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Employee List</CardTitle>
+
+          <div className="flex items-center gap-4">
+            <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedStatus} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Link href="/employees/add">
             <Button variant="default">+ Add New</Button>
           </Link>
@@ -108,7 +170,7 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
               </tr>
             </thead>
             <tbody>
-              {employees?.map((employee) => (
+              {filteredEmployees?.map((employee) => (
                 <tr 
                   key={employee.id} 
                   className="border-b hover:bg-muted/50 cursor-pointer"
