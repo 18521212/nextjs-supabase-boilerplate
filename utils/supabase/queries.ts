@@ -197,6 +197,25 @@ export async function getProjects(
   return { projects: projectsWithClientName, count };
 }
 
+export async function getProjectsByClientId(
+  supabase: SupabaseClient,
+  tenantId: string,
+  clientId: string
+): Promise<Record<string, any>[]> {
+  const { data: projects, error } = await supabase
+    .from('Projects')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('client_id', clientId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching client projects:', error);
+    return [];
+  }
+  return projects || [];
+}
+
 export async function getProject(supabase: SupabaseClient, id: string) {
   const { data: project, error } = await supabase
     .from('Projects')

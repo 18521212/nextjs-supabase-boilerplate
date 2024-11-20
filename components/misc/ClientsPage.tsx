@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
-import { getClients } from '@/utils/supabase/queries';
+import { getClients, getProjectsByClientId } from '@/utils/supabase/queries';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,6 +13,9 @@ import { Pagination } from '@/components/ui/pagination';
 import { DEFAULT_ITEMS_PER_PAGE } from '@/utils/constants';
 import { useTenant } from '@/utils/tenant-context';
 import { toast } from '@/components/ui/use-toast';
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface ClientsPageProps {
   user: User;
@@ -26,6 +29,10 @@ export default function ClientsPage({ user }: ClientsPageProps) {
   const [totalItems, setTotalItems] = useState(0);
   const router = useRouter();
   const { currentTenant } = useTenant();
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [clientProjects, setClientProjects] = useState<any[]>([]);
   
   useEffect(() => {
     if (currentTenant) {
@@ -80,6 +87,22 @@ export default function ClientsPage({ user }: ClientsPageProps) {
     setCurrentPage(1);
   };
 
+  const handleViewDetails = async (e: React.MouseEvent, client: Record<string, any>) => {
+    e.stopPropagation();
+    setSelectedClient(client);
+    
+    try {
+      const supabase = createClient();
+      const projects = await getProjectsByClientId(supabase, currentTenant!.id, client.id);
+      setClientProjects(projects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setClientProjects([]);
+    }
+    
+    setIsDetailOpen(true);
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -87,6 +110,7 @@ export default function ClientsPage({ user }: ClientsPageProps) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return (
+
     <div className="container mx-auto">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -128,6 +152,13 @@ export default function ClientsPage({ user }: ClientsPageProps) {
                     </span>
                   </td>
                   <td className="p-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => handleViewDetails(e, client)}
+                  >
+                    View Details
+                  </Button>
                     <Button 
                       variant="ghost" 
                       size="icon"
@@ -143,6 +174,88 @@ export default function ClientsPage({ user }: ClientsPageProps) {
               ))}
             </tbody>
           </table>
+
+          <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Client Details</DialogTitle>
+              </DialogHeader>
+              
+              {selectedClient && (
+                <div className="space-y-6">
+                  {/* Client Information */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold text-sm">Name</h3>
+                      <p>{selectedClient.name}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">Client Code</h3>
+                      <p>{selectedClient.client_code}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">Address</h3>
+                      <p>{selectedClient.address}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">Country</h3>
+                      <p>{selectedClient.country_code_iso_2}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">Status</h3>
+                      <Badge variant={selectedClient.is_active ? "default" : "destructive"}>
+                        {selectedClient.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Projects Section */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Projects</h3>
+                    {clientProjects.length > 0 ? (
+                      <div className="border rounded-lg">
+                        <table className="w-full">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="p-2 text-left">Project Name</th>
+                              <th className="p-2 text-left">Start Date</th>
+                              <th className="p-2 text-left">End Date</th>
+                              <th className="p-2 text-left">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientProjects.map((project) => (
+                              <tr key={project.id} className="border-t">
+                                <td className="p-2">{project.name}</td>
+                                <td className="p-2">{new Date(project.start_date).toLocaleDateString()}</td>
+                                <td className="p-2">
+                                  {project.end_date 
+                                    ? new Date(project.end_date).toLocaleDateString()
+                                    : "Ongoing"
+                                  }
+                                </td>
+                                <td className="p-2">
+                                  <Badge variant={
+                                    project.status === "completed" ? "default" :
+                                    project.status === "in_progress" ? "default" :
+                                    "secondary"
+                                  }>
+                                    {project.status?.replace("_", " ") || "Unknown"}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No projects found</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           <Pagination
             currentPage={currentPage}
