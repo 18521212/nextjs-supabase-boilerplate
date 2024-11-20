@@ -12,15 +12,18 @@ import { useRouter } from 'next/navigation';
 import { Pagination } from '@/components/ui/pagination';
 import { DEFAULT_ITEMS_PER_PAGE } from '@/utils/constants';
 import { CalendarView } from '@/components/ui/calendar-view';
+import { WeeklyView } from '@/components/ui/weekly-view';
 import { useTenant } from '@/utils/tenant-context';
 import { toast } from '@/components/ui/use-toast';
 import { HeatmapView } from '@/components/ui/heatmap-view';
+
+import { Clock } from 'lucide-react';
 
 interface AllocationsPageProps {
   user: User;
 }
 
-type ViewMode = 'list' | 'calendar' | 'heatmap';
+type ViewMode = 'list' | 'calendar' | 'heatmap' | 'weekly';
 
 export default function AllocationsPage({ user }: AllocationsPageProps) {
   const [allocations, setAllocations] = useState<any[]>([]);
@@ -132,6 +135,15 @@ export default function AllocationsPage({ user }: AllocationsPageProps) {
             <Button
               variant="outline"
               size="icon"
+              onClick={() => setViewMode('weekly')}
+              title="Weekly View"
+              className={viewMode === 'weekly' ? 'bg-accent' : ''}
+            >
+              <Clock className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setViewMode('heatmap')}
               title="Heatmap View"
               className={viewMode === 'heatmap' ? 'bg-accent' : ''}
@@ -197,6 +209,8 @@ export default function AllocationsPage({ user }: AllocationsPageProps) {
             </>
           ) : viewMode === 'calendar' ? (
             <CalendarView allocations={allocations} />
+          ) : viewMode === 'weekly' ? (
+            <WeeklyView allocations={allocations} />
           ) : (
             <HeatmapView allocations={allocations} />
           )}
