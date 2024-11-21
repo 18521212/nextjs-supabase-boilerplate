@@ -13,6 +13,8 @@ import { useTenant } from '@/utils/tenant-context';
 import { toast } from '@/components/ui/use-toast';
 import { Department } from '@/utils/types';
 
+import { DepartmentEmployeesDialog } from "@/components/ui/department-employees-dialog";
+
 interface DepartmentsPageProps {
   user: User;
 }
@@ -26,6 +28,7 @@ interface DepartmentNodeProps {
 
 const DepartmentNode = ({ department, level, onEdit, allDepartments }: DepartmentNodeProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showEmployees, setShowEmployees] = useState(false);
   
   const childDepartments = allDepartments.filter(d => d.parent_department_id === department.id);
   const hasChildren = childDepartments.length > 0;
@@ -35,9 +38,18 @@ const DepartmentNode = ({ department, level, onEdit, allDepartments }: Departmen
       <div 
         className={`flex items-center p-2 hover:bg-muted/50 ${level > 0 ? 'ml-6' : ''}`}
       >
-        <div className="flex-1 flex items-center gap-2">
+        <div 
+          className="flex-1 flex items-center gap-2 cursor-pointer"
+          onClick={() => setShowEmployees(true)}
+        >
           {hasChildren && (
-            <button onClick={() => setIsExpanded(!isExpanded)} className="p-1">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }} 
+              className="p-1"
+            >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
               ) : (
@@ -54,11 +66,22 @@ const DepartmentNode = ({ department, level, onEdit, allDepartments }: Departmen
         <Button 
           variant="ghost" 
           size="icon"
-          onClick={() => onEdit(department.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(department.id);
+          }}
         >
           <Settings className="h-4 w-4" />
         </Button>
       </div>
+
+      <DepartmentEmployeesDialog
+        isOpen={showEmployees}
+        onClose={() => setShowEmployees(false)}
+        department={department}
+        allDepartments={allDepartments}
+      />
+
       {hasChildren && isExpanded && (
         <div className="border-l ml-3">
           {childDepartments.map((child) => (
@@ -75,6 +98,60 @@ const DepartmentNode = ({ department, level, onEdit, allDepartments }: Departmen
     </div>
   );
 };
+
+// const DepartmentNode = ({ department, level, onEdit, allDepartments }: DepartmentNodeProps) => {
+//   const [isExpanded, setIsExpanded] = useState(true);
+  
+//   const childDepartments = allDepartments.filter(d => d.parent_department_id === department.id);
+//   const hasChildren = childDepartments.length > 0;
+
+//   const [showEmployees, setShowEmployees] = useState(false);
+
+//   return (
+//     <div className="w-full">
+//       <div 
+//         className={`flex items-center p-2 hover:bg-muted/50 ${level > 0 ? 'ml-6' : ''}`}
+//       >
+//         <div className="flex-1 flex items-center gap-2">
+//           {hasChildren && (
+//             <button onClick={() => setIsExpanded(!isExpanded)} className="p-1">
+//               {isExpanded ? (
+//                 <ChevronDown className="h-4 w-4" />
+//               ) : (
+//                 <ChevronRight className="h-4 w-4" />
+//               )}
+//             </button>
+//           )}
+//           {!hasChildren && <div className="w-6" />}
+//           <span>{department.name}</span>
+//           <span className={`ml-2 text-xs ${department.is_active ? 'text-green-600' : 'text-red-600'}`}>
+//             ({department.is_active ? 'Active' : 'Inactive'})
+//           </span>
+//         </div>
+//         <Button 
+//           variant="ghost" 
+//           size="icon"
+//           onClick={() => onEdit(department.id)}
+//         >
+//           <Settings className="h-4 w-4" />
+//         </Button>
+//       </div>
+//       {hasChildren && isExpanded && (
+//         <div className="border-l ml-3">
+//           {childDepartments.map((child) => (
+//             <DepartmentNode
+//               key={child.id}
+//               department={child}
+//               level={level + 1}
+//               onEdit={onEdit}
+//               allDepartments={allDepartments}
+//             />
+//           ))}
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
 
 export default function DepartmentsPage({ user }: DepartmentsPageProps) {
   const [departments, setDepartments] = useState<Department[]>([]);

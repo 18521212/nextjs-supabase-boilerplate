@@ -56,6 +56,44 @@ export async function getEmployee(supabase: SupabaseClient, id: string) {
   return employee;
 }
 
+export async function getDepartmentEmployees(
+  supabase: SupabaseClient,
+  departmentId: string
+) {
+  // First get all sub-departments
+  const { data: departments } = await supabase
+    .from('Departments')
+    .select('id')
+    .eq('is_deleted', false)
+    .eq('parent_department_id', departmentId);
+
+  // Combine parent and child department IDs
+  const departmentIds = [departmentId, ...(departments?.map(d => d.id) || [])];
+  console.log('departmentIds', departmentIds);
+
+  // Get employees from all these departments
+  const { data: employees, error } = await supabase
+    .from('Employees')
+    .select(`
+      *,
+      departments:EmployeeDepartments!inner(
+        department:Departments!inner(*)
+      )
+    `)
+    .eq('is_deleted', false)
+    .eq('is_active', true)
+    .in('departments.department.id', departmentIds);
+  console.log('employees', employees);
+
+  if (error) {
+    console.log('error1', error);
+    console.error('Error fetching department employees:', error);
+    return null;
+  }
+
+  return employees;
+}
+
 export async function addEmployee(supabase: SupabaseClient, employeeData: any) {
   const { data, error } = await supabase
     .from('Employees')
