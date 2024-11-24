@@ -41,19 +41,41 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
   
   useEffect(() => {
     if (currentTenant) {
-      loadEmployees();
+      loadEmployees(selectedDepartment, selectedStatus);
     }
-  }, [currentPage, itemsPerPage, currentTenant]);
+  }, [currentPage, itemsPerPage, currentTenant, selectedDepartment, selectedStatus]);
 
-  async function loadEmployees() {
+  async function loadEmployees(department?: string, status?: string) {
     try {
       setLoading(true);
       const supabase = createClient();
-      const { employees, count } = await getEmployees(supabase, currentTenant!.id, currentPage, itemsPerPage);
+      
+      // Convert status string to boolean for the query
+      const statusBoolean = status === 'active' ? true : 
+                           status === 'inactive' ? false : 
+                           undefined;
+      
+      // Only pass department if it's not 'all'
+      const departmentFilter = department === 'all' ? undefined : department;
+
+      const { employees, count } = await getEmployees(
+        supabase, 
+        currentTenant!.id, 
+        currentPage, 
+        itemsPerPage,
+        departmentFilter,
+        statusBoolean
+      );
+
       if (employees) {
         setEmployees(employees);
         setTotalItems(count || 0);
-        setDepartments(Array.from(new Set(employees.flatMap(emp => emp.departments?.map((d: any) => d.department.name)))));
+        // Update departments list
+        const deptNames = employees
+          .flatMap(emp => emp.departments || [])
+          .filter((d: any) => d?.department?.name)
+          .map((d: any) => d.department.name);
+        setDepartments(Array.from(new Set(deptNames)));
       }
     } catch (error) {
       console.error('Error loading employees:', error);
@@ -95,24 +117,13 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
 
   const handleDepartmentChange = (value: string) => {
     setSelectedDepartment(value);
-    // Note: You might want to add department filtering logic here
+    setCurrentPage(1);
   };
 
   const handleStatusChange = (value: string) => {
     setSelectedStatus(value);
     setCurrentPage(1);
   };
-
-  const filteredEmployees = employees.filter(employee => 
-    (selectedDepartment === "all" || 
-      employee.departments?.some(
-        (d: any) => d.department.name === selectedDepartment
-      )
-    ) &&
-    (selectedStatus === "all" || 
-      (selectedStatus === "active" ? employee.is_active : !employee.is_active)
-    )
-  );
 
   if (loading) {
     return <div>Loading...</div>;
@@ -170,7 +181,7 @@ export default function EmployeesPage({ user }: EmployeesPageProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredEmployees?.map((employee) => (
+              {employees?.map((employee) => (
                 <tr 
                   key={employee.id} 
                   className="border-b hover:bg-muted/50 cursor-pointer"

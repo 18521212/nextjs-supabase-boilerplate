@@ -11,26 +11,45 @@ export async function getEmployees(
   supabase: SupabaseClient,
   tenantId: string,
   page?: number,
-  itemsPerPage?: number
+  itemsPerPage?: number,
+  department?: string,
+  status?: boolean
 ) {
   let query = supabase
     .from('Employees')
     .select(`
       *,
-      departments:EmployeeDepartments(
-        department:Departments(*)
+      departments:EmployeeDepartments!inner(
+        department:Departments!inner(
+          id,
+          name
+        )
       )
     `, { count: 'exact' })
     .eq('is_deleted', false)
     .eq('tenant_id', tenantId)
-    .order('surname', { ascending: true });
+
+  // Add status filter if provided
+  if (status !== undefined) {
+    query = query.eq('is_active', status);
+  }
+
+  // Add department filter if provided and not 'all'
+  if (department) {
+    query = query
+      .eq('departments.department.name', department);
+  }
 
   if (page !== undefined && itemsPerPage !== undefined) {
     const startRow = (page - 1) * itemsPerPage;
     query = query.range(startRow, startRow + itemsPerPage - 1);
   }
 
+  query = query.order('surname', { ascending: true });
+
   const { data: employees, error, count } = await query;
+  console.log('department', department);
+  console.log('employees', employees);
 
   if (error) {
     console.error('Error fetching employees:', error);
